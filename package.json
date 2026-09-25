@@ -1,0 +1,8 @@
+{
+  "name": "gmail-mail-sender",
+  "version": "1.0.0",
+  "main": "api/send.js",
+  "dependencies": {
+    "nodemailer": "^6.9.0"
+  }
+}

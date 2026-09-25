@@ -1,7 +1,7 @@
 const nodemailer = require('nodemailer');
 
 module.exports = async (req, res) => {
-  // CORS Headers
+  // CORS configuration
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -15,7 +15,16 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    // Body parse handling for Vercel Serverless
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {
+        body = {};
+      }
+    }
+
     const { senderName, email, appPassword, recipients, subject, message } = body || {};
 
     if (!email || !appPassword || !recipients || !subject || !message) {
@@ -23,7 +32,8 @@ module.exports = async (req, res) => {
     }
 
     const cleanEmail = email.trim();
-    const cleanPassword = appPassword.replace(/\s+/g, ''); // Removes spaces from App Password
+    // Spaces remove karein App Password se
+    const cleanPassword = appPassword.replace(/\s+/g, '');
 
     const recipientList = recipients
       .split('\n')
@@ -31,21 +41,24 @@ module.exports = async (req, res) => {
       .filter(e => e.length > 0);
 
     if (recipientList.length === 0) {
-      return res.status(400).json({ error: 'At least 1 recipient email chahiye!' });
+      return res.status(400).json({ error: 'Kam se kam 1 recipient email daliye!' });
     }
 
-    // SMTP Config
+    // Direct Google SMTP Configuration (Fixes Vercel Connection Timeout)
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true, // SSL Connection
       auth: {
         user: cleanEmail,
         pass: cleanPassword
-      }
+      },
+      connectionTimeout: 10000 // 10 seconds timeout limit
     });
 
     let sent = 0;
     let failed = 0;
-    let lastError = '';
+    let errorMessage = '';
 
     const formattedSenderName = senderName && senderName.trim() ? senderName.trim() : 'Sender';
     const fromHeader = `"\({formattedSenderName}" <\){cleanEmail}>`;

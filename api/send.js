@@ -88,6 +88,6 @@ return res.status(200).json({
   message: `Email sending completed. Sent: \({sent}, Failed:\){failed}.`
 });
 } catch (error) {
-return res.status(500).json({ error: Server Crash: ${error.message} });
+return res.status(500).json({ error: Server Error: ${error.message} });
 }
 };

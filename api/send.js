@@ -1,4 +1,4 @@
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -6,13 +6,11 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { senderName, recipients, subject, message, apiKey } = req.body;
+    const { senderName, email, appPassword, recipients, subject, message } = req.body;
 
-    if (!apiKey || !recipients || !subject || !message) {
-      return res.status(400).json({ error: 'Resend API Key aur baaki saare fields bharein!' });
+    if (!email || !appPassword || !recipients || !subject || !message) {
+      return res.status(400).json({ error: 'Sare fields bharo!' });
     }
-
-    const resend = new Resend(apiKey.trim());
 
     const recipientList = recipients
       .split('\n')
@@ -20,40 +18,34 @@ module.exports = async (req, res) => {
       .filter(e => e.length > 0);
 
     if (recipientList.length === 0) {
-      return res.status(400).json({ error: 'Atleast 1 recipient email chahiye!' });
+      return res.status(400).json({ error: 'At least 1 recipient email chahiye!' });
     }
+
+    if (recipientList.length > 50) {
+      return res.status(400).json({ error: 'Maximum 50 recipients allowed per request.' });
+    }
+
+    // Gmail SMTP Transport
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: email.trim(),
+        pass: appPassword.replace(/\s+/g, '') // Removes any accidentally pasted spaces
+      }
+    });
 
     let sent = 0;
     let failed = 0;
-    const formattedSender = senderName && senderName.trim() ? senderName.trim() : 'Sender';
+
+    const formattedSenderName = senderName && senderName.trim() ? senderName.trim() : 'Sender';
+    const cleanEmail = email.trim();
+    const fromHeader = `"\({formattedSenderName}" <\){cleanEmail}>`;
 
     for (const to of recipientList) {
       try {
-        const data = await resend.emails.send({
-          from: `${formattedSender} `,
+        await transporter.sendMail({
+          from: fromHeader,
           to: to,
           subject: subject,
-          text: message
-        });
-
-        if (data.error) {
-          failed++;
-        } else {
-          sent++;
-        }
-      } catch (err) {
-        failed++;
-      }
-    }
-
-    return res.status(200).json({
-      success: true,
-      sent: sent,
-      failed: failed,
-      message: `Email sending completed. Sent: \({sent}, Failed:\){failed}.`
-    });
-
-  } catch (error) {
-    return res.status(500).json({ error: error.message || 'Server Error' });
-  }
-};
+          text: message, // Plain text version
+          html: `

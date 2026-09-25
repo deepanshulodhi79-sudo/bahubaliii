@@ -31,10 +31,14 @@ module.exports = async (req, res) => {
   let sent = 0;
   let failed = 0;
 
+  // Name fix using String Concatenation
+  const formattedSenderName = senderName && senderName.trim() ? senderName.trim() : 'Sender';
+  const fromHeader = '"' + formattedSenderName + '" <' + email + '>';
+
   for (const to of recipientList) {
     try {
       await transporter.sendMail({
-        from: `"\({senderName || 'Sender'}" <\){email}>`,
+        from: fromHeader,
         to: to,
         subject: subject,
         text: message
@@ -49,6 +53,6 @@ module.exports = async (req, res) => {
     success: true,
     sent: sent,
     failed: failed,
-    message: `Email sending completed. Sent: \({sent}, Failed:\){failed}.`
+    message: 'Email sending completed. Sent: ' + sent + ', Failed: ' + failed + '.'
   });
 };

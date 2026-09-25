@@ -16,13 +16,17 @@ module.exports = async (req, res) => {
   try {
     let body = req.body;
     if (typeof body === 'string') {
-      try { body = JSON.parse(body); } catch (e) {}
+      try {
+        body = JSON.parse(body);
+      } catch (e) {
+        body = {};
+      }
     }
 
     const { senderName, email, appPassword, recipients, subject, message } = body || {};
 
     if (!email || !appPassword || !recipients || !subject || !message) {
-      return res.status(400).json({ error: 'Please fill all required fields.' });
+      return res.status(400).json({ error: 'Sare fields bharna zaroori hai!' });
     }
 
     const cleanEmail = email.trim();
@@ -34,7 +38,7 @@ module.exports = async (req, res) => {
       .filter(e => e.length > 0);
 
     if (recipientList.length === 0) {
-      return res.status(400).json({ error: 'At least one recipient email is required.' });
+      return res.status(400).json({ error: 'At least 1 recipient email chahiye!' });
     }
 
     const transporter = nodemailer.createTransport({
@@ -52,7 +56,7 @@ module.exports = async (req, res) => {
     let lastError = '';
 
     const formattedSenderName = senderName && senderName.trim() ? senderName.trim() : 'Sender';
-    const fromHeader = `"\({formattedSenderName}" <\){cleanEmail}>`;
+    const fromHeader = '"' + formattedSenderName + '" <' + cleanEmail + '>';
 
     for (const to of recipientList) {
       try {
@@ -61,33 +65,28 @@ module.exports = async (req, res) => {
           to: to,
           subject: subject,
           text: message,
-          html: `
-${message.replace(/\n/g, '
+          html: message,
+          replyTo: cleanEmail
+        });
+        sent++;
+      } catch (err) {
+        failed++;
+        lastError = err.message || String(err);
+      }
+    }
 
+    if (sent === 0 && failed > 0) {
+      return res.status(400).json({ error: 'Gmail Error: ' + lastError });
+    }
 
-')}
+    return res.status(200).json({
+      success: true,
+      sent: sent,
+      failed: failed,
+      message: 'Email sending completed. Sent: ' + sent + ', Failed: ' + failed + '.'
+    });
 
-`,
-replyTo: cleanEmail
-});
-sent++;
-} catch (err) {
-failed++;
-lastError = err.message || String(err);
-}
-}
-
-if (sent === 0 && failed > 0) {
-  return res.status(400).json({ error: `Gmail Error: ${lastError}` });
-}
-
-return res.status(200).json({
-  success: true,
-  sent: sent,
-  failed: failed,
-  message: `Email sending completed. Sent: \({sent}, Failed:\){failed}.`
-});
-} catch (error) {
-return res.status(500).json({ error: Server Error: ${error.message} });
-}
+  } catch (error) {
+    return res.status(500).json({ error: 'Server Error: ' + error.message });
+  }
 };

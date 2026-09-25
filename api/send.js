@@ -1,92 +1,109 @@
-const nodemailer = require('nodemailer');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gmail Mail Sender</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 flex items-center justify-center min-h-screen p-4 text-[15px]">
 
-module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-2xl">
+    <h1 class="text-3xl font-bold text-slate-800">Gmail Mail Sender</h1>
+    <p class="text-slate-500 text-[15px] mb-6">Send emails using your authenticated Gmail account.</p>
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+    <form id="mailForm" class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-[15px] font-semibold text-slate-700 mb-1">Sender Name</label>
+          <input type="text" id="senderName" placeholder="Your Name" class="w-full border rounded-lg p-3 text-[15px] focus:ring-2 focus:ring-slate-800 outline-none">
+        </div>
+        <div>
+          <label class="block text-[15px] font-semibold text-slate-700 mb-1">Gmail Address</label>
+          <input type="email" id="email" placeholder="youname@gmail.com" required class="w-full border rounded-lg p-3 text-[15px] focus:ring-2 focus:ring-slate-800 outline-none">
+        </div>
+      </div>
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
+      <div>
+        <label class="block text-[15px] font-semibold text-slate-700 mb-1">Gmail App Password</label>
+        <input type="password" id="appPassword" placeholder="Enter 16-character App Password" required class="w-full border rounded-lg p-3 text-[15px] focus:ring-2 focus:ring-slate-800 outline-none">
+        <p class="text-[13px] text-slate-400 mt-1">Use a Gmail App Password. Do not use your normal Gmail password.</p>
+      </div>
 
-  try {
-    let body = req.body;
-    if (typeof body === 'string') {
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <label class="text-[15px] font-semibold text-slate-700">Recipients</label>
+          <span class="text-[13px] text-slate-400">One email per line</span>
+        </div>
+        <textarea id="recipients" rows="3" required placeholder="recipient1@example.com
+recipient2@example.com" class="w-full border rounded-lg p-3 text-[15px] focus:ring-2 focus:ring-slate-800 outline-none"></textarea>
+        <p class="text-[13px] text-slate-400 mt-1">Maximum 50 recipients per request.</p>
+      </div>
+
+      <div>
+        <label class="block text-[15px] font-semibold text-slate-700 mb-1">Subject</label>
+        <input type="text" id="subject" placeholder="Email subject" required class="w-full border rounded-lg p-3 text-[15px] focus:ring-2 focus:ring-slate-800 outline-none">
+      </div>
+
+      <div>
+        <label class="block text-[15px] font-semibold text-slate-700 mb-1">Main Message</label>
+        <textarea id="message" rows="4" required placeholder="Write your email message here..." class="w-full border rounded-lg p-3 text-[15px] focus:ring-2 focus:ring-slate-800 outline-none"></textarea>
+      </div>
+
+      <div id="statusBox" class="hidden p-3 rounded-lg text-[15px]"></div>
+
+      <div class="flex justify-end gap-3 pt-2">
+        <button type="button" onclick="document.getElementById('mailForm').reset(); document.getElementById('statusBox').classList.add('hidden');" class="px-5 py-2.5 rounded-lg bg-slate-100 text-slate-700 text-[15px] font-semibold hover:bg-slate-200">Clear</button>
+        <button type="submit" id="sendBtn" class="px-5 py-2.5 rounded-lg bg-slate-900 text-white text-[15px] font-semibold hover:bg-slate-800">Send Email</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    document.getElementById('mailForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const sendBtn = document.getElementById('sendBtn');
+      const statusBox = document.getElementById('statusBox');
+
+      sendBtn.innerText = 'Sending...';
+      sendBtn.disabled = true;
+      statusBox.classList.add('hidden');
+
+      const data = {
+        senderName: document.getElementById('senderName').value,
+        email: document.getElementById('email').value,
+        appPassword: document.getElementById('appPassword').value,
+        recipients: document.getElementById('recipients').value,
+        subject: document.getElementById('subject').value,
+        message: document.getElementById('message').value
+      };
+
       try {
-        body = JSON.parse(body);
-      } catch (e) {
-        body = {};
-      }
-    }
-
-    const { senderName, email, appPassword, recipients, subject, message } = body || {};
-
-    if (!email || !appPassword || !recipients || !subject || !message) {
-      return res.status(400).json({ error: 'Sare fields bharna zaroori hai!' });
-    }
-
-    const cleanEmail = email.trim();
-    const cleanPassword = appPassword.replace(/\s+/g, '');
-
-    const recipientList = recipients
-      .split('\n')
-      .map(e => e.trim())
-      .filter(e => e.length > 0);
-
-    if (recipientList.length === 0) {
-      return res.status(400).json({ error: 'At least 1 recipient email chahiye!' });
-    }
-
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: cleanEmail,
-        pass: cleanPassword
-      }
-    });
-
-    let sent = 0;
-    let failed = 0;
-    let lastError = '';
-
-    const formattedSenderName = senderName && senderName.trim() ? senderName.trim() : 'Sender';
-    const fromHeader = '"' + formattedSenderName + '" <' + cleanEmail + '>';
-
-    for (const to of recipientList) {
-      try {
-        await transporter.sendMail({
-          from: fromHeader,
-          to: to,
-          subject: subject,
-          text: message,
-          html: message,
-          replyTo: cleanEmail
+        const res = await fetch('/api/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
         });
-        sent++;
+
+        const result = await res.json();
+        statusBox.classList.remove('hidden');
+
+        if (res.ok) {
+          statusBox.className = "p-3 rounded-lg text-[15px] bg-green-100 text-green-800";
+          statusBox.innerText = result.message;
+        } else {
+          statusBox.className = "p-3 rounded-lg text-[15px] bg-red-100 text-red-800";
+          statusBox.innerText = result.error || 'Server Error';
+        }
       } catch (err) {
-        failed++;
-        lastError = err.message || String(err);
+        statusBox.classList.remove('hidden');
+        statusBox.className = "p-3 rounded-lg text-[15px] bg-red-100 text-red-800";
+        statusBox.innerText = 'Fetch error: ' + err.message;
       }
-    }
 
-    if (sent === 0 && failed > 0) {
-      return res.status(400).json({ error: 'Gmail Error: ' + lastError });
-    }
-
-    return res.status(200).json({
-      success: true,
-      sent: sent,
-      failed: failed,
-      message: 'Email sending completed. Sent: ' + sent + ', Failed: ' + failed + '.'
+      sendBtn.innerText = 'Send Email';
+      sendBtn.disabled = false;
     });
-
-  } catch (error) {
-    return res.status(500).json({ error: 'Server Error: ' + error.message });
-  }
-};
+  </script>
+</body>
+</html>

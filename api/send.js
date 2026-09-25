@@ -11,7 +11,6 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Sare fields bharo!' });
   }
 
-  // Recipients array conversion (line by line break)
   const recipientList = recipients
     .split('\n')
     .map(e => e.trim())
@@ -21,7 +20,6 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Maximum 50 recipients allowed.' });
   }
 
-  // Gmail SMTP Transporter setup
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {

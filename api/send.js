@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -6,11 +6,13 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { senderName, email, appPassword, recipients, subject, message } = req.body;
+    const { senderName, recipients, subject, message, apiKey } = req.body;
 
-    if (!email || !appPassword || !recipients || !subject || !message) {
-      return res.status(400).json({ error: 'Sare fields bharo!' });
+    if (!apiKey || !recipients || !subject || !message) {
+      return res.status(400).json({ error: 'Resend API Key aur baaki saare fields bharein!' });
     }
+
+    const resend = new Resend(apiKey.trim());
 
     const recipientList = recipients
       .split('\n')
@@ -21,38 +23,25 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Atleast 1 recipient email chahiye!' });
     }
 
-    if (recipientList.length > 50) {
-      return res.status(400).json({ error: 'Maximum 50 recipients allowed.' });
-    }
-
-    // Transporter configuration
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true, // SSL use karein
-      auth: {
-        user: email.trim(),
-        pass: appPassword.replace(/\s+/g, '') // App password ke saare spaces remove karein
-      }
-    });
-
     let sent = 0;
     let failed = 0;
-
-    const formattedSenderName = senderName && senderName.trim() ? senderName.trim() : 'Sender';
-    const fromHeader = '"' + formattedSenderName + '" <' + email.trim() + '>';
+    const formattedSender = senderName && senderName.trim() ? senderName.trim() : 'Sender';
 
     for (const to of recipientList) {
       try {
-        await transporter.sendMail({
-          from: fromHeader,
+        const data = await resend.emails.send({
+          from: `${formattedSender} `,
           to: to,
           subject: subject,
           text: message
         });
-        sent++;
+
+        if (data.error) {
+          failed++;
+        } else {
+          sent++;
+        }
       } catch (err) {
-        console.error('Mail error for ' + to + ':', err);
         failed++;
       }
     }
@@ -61,11 +50,10 @@ module.exports = async (req, res) => {
       success: true,
       sent: sent,
       failed: failed,
-      message: 'Email sending completed. Sent: ' + sent + ', Failed: ' + failed + '.'
+      message: `Email sending completed. Sent: \({sent}, Failed:\){failed}.`
     });
 
   } catch (error) {
-    console.error('Server Error:', error);
-    return res.status(500).json({ error: error.message || 'Server Internal Error' });
+    return res.status(500).json({ error: error.message || 'Server Error' });
   }
 };

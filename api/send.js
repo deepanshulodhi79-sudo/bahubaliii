@@ -62,3 +62,32 @@ module.exports = async (req, res) => {
           subject: subject,
           text: message,
           html: `
+${message.replace(/\n/g, '
+
+
+')}
+
+`,
+replyTo: cleanEmail
+});
+sent++;
+} catch (err) {
+failed++;
+lastError = err.message || String(err);
+}
+}
+
+if (sent === 0 && failed > 0) {
+  return res.status(400).json({ error: `Gmail Error: ${lastError}` });
+}
+
+return res.status(200).json({
+  success: true,
+  sent: sent,
+  failed: failed,
+  message: `Email sending completed. Sent: \({sent}, Failed:\){failed}.`
+});
+} catch (error) {
+return res.status(500).json({ error: Server Crash: ${error.message} });
+}
+};

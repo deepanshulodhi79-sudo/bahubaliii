@@ -1,8 +1,23 @@
 {
-  "name": "gmail-mail-sender",
-  "version": "1.0.0",
-  "main": "api/send.js",
-  "dependencies": {
-    "nodemailer": "^6.9.0"
-  }
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/send.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "public/*",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/send",
+      "dest": "api/send.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "public/$1"
+    }
+  ]
 }

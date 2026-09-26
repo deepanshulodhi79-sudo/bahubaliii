@@ -5,14 +5,40 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
 
   try {
-    const { email, appPassword, recipients, subject, message, senderName } = req.body || {};
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {
+        body = {};
+      }
+    }
+
+    const { senderName, email, appPassword, recipients, subject, message } = body || {};
 
     if (!email || !appPassword || !recipients || !subject || !message) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ error: 'Sare fields bharna zaroori hai!' });
+    }
+
+    const cleanEmail = email.trim();
+    const cleanPassword = appPassword.replace(/\s+/g, '');
+
+    const recipientList = recipients
+      .split('\n')
+      .map(e => e.trim())
+      .filter(e => e.length > 0);
+
+    if (recipientList.length === 0) {
+      return res.status(400).json({ error: 'At least 1 recipient email chahiye!' });
     }
 
     const transporter = nodemailer.createTransport({
@@ -20,23 +46,47 @@ module.exports = async (req, res) => {
       port: 465,
       secure: true,
       auth: {
-        user: email.trim(),
-        pass: appPassword.replace(/\s+/g, '')
+        user: cleanEmail,
+        pass: cleanPassword
       }
     });
 
-    const recipientList = recipients.split('\n').map(e => e.trim()).filter(Boolean);
+    let sent = 0;
+    let failed = 0;
+    let lastError = '';
 
-    await transporter.sendMail({
-      from: `"\({senderName || 'Sender'}" <\){email.trim()}>`,
-      to: recipientList,
-      subject: subject,
-      text: message
+    const displayName = senderName && senderName.trim() ? senderName.trim() : 'Sender';
+    const fromHeader = `"\({displayName}" <\){cleanEmail}>`;
+
+    for (const to of recipientList) {
+      try {
+        await transporter.sendMail({
+          from: fromHeader,
+          to: to,
+          subject: subject,
+          text: message,
+          html: message,
+          replyTo: cleanEmail
+        });
+        sent++;
+      } catch (err) {
+        failed++;
+        lastError = err.message || String(err);
+      }
+    }
+
+    if (sent === 0 && failed > 0) {
+      return res.status(400).json({ error: `Gmail Error: ${lastError}` });
+    }
+
+    return res.status(200).json({
+      success: true,
+      sent: sent,
+      failed: failed,
+      message: `Email sending completed. Sent: \({sent}, Failed:\){failed}.`
     });
 
-    return res.status(200).json({ success: true, message: 'Email sent successfully!' });
-
   } catch (error) {
-    return res.status(500).json({ error: error.message || 'Unknown Server Error' });
+    return res.status(500).json({ error: `Server Error: ${error.message}` });
   }
 };

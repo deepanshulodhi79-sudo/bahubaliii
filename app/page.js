@@ -14,7 +14,7 @@ export default function Home() {
     setStatus("Sending...");
 
     try {
-      const res = await fetch("/api/send", {
+      const response = await fetch("/api/send", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -28,12 +28,12 @@ export default function Home() {
         }),
       });
 
-      const data = await res.json();
+      const data = await response.json();
 
       if (data.success) {
-        setStatus("Email sent!");
+        setStatus("Email sent successfully!");
       } else {
-        setStatus(data.error);
+        setStatus(data.error || "Failed to send email.");
       }
     } catch (error) {
       setStatus(error.message);
@@ -41,10 +41,11 @@ export default function Home() {
   }
 
   return (
-    <main>
-      <h1>Simple Gmail Sender</h1>
+    <main className="container">
+      <h1>Gmail Sender</h1>
 
       <input
+        type="email"
         placeholder="Gmail ID"
         value={senderEmail}
         onChange={(e) => setSenderEmail(e.target.value)}
@@ -58,12 +59,14 @@ export default function Home() {
       />
 
       <input
+        type="email"
         placeholder="Recipient Gmail"
         value={recipient}
         onChange={(e) => setRecipient(e.target.value)}
       />
 
       <input
+        type="text"
         placeholder="Subject"
         value={subject}
         onChange={(e) => setSubject(e.target.value)}

@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Mail Sender",
-  description: "Simple SMTP email sender"
+  title: "Gmail Sender",
+  description: "Simple Gmail SMTP Sender",
 };
 
 export default function RootLayout({ children }) {

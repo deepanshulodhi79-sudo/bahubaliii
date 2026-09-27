@@ -1,8 +1,16 @@
 {
-  "name": "gmail-mail-sender",
+  "name": "gmail-sender",
   "version": "1.0.0",
-  "main": "api/send.js",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
   "dependencies": {
-    "nodemailer": "^6.9.0"
+    "next": "15.5.26",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "nodemailer": "7.0.6"
   }
 }

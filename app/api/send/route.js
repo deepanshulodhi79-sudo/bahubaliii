@@ -5,10 +5,25 @@ export async function POST(req) {
     const {
       senderEmail,
       appPassword,
-      recipient,
+      recipients,
       subject,
       message,
     } = await req.json();
+
+    const recipientList = recipients
+      .split(/\r?\n|,/)
+      .map((email) => email.trim())
+      .filter(Boolean);
+
+    if (!senderEmail || !appPassword || !recipientList.length || !subject || !message) {
+      return Response.json(
+        {
+          success: false,
+          error: "Please fill all fields.",
+        },
+        { status: 400 }
+      );
+    }
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -18,15 +33,31 @@ export async function POST(req) {
       },
     });
 
-    await transporter.sendMail({
-      from: senderEmail,
-      to: recipient,
-      subject: subject,
-      text: message,
-    });
+    let sent = 0;
+    let failed = 0;
+
+    for (const recipient of recipientList) {
+      try {
+        await transporter.sendMail({
+          from: senderEmail,
+          to: recipient,
+          subject: subject,
+          text: message,
+        });
+
+        sent++;
+      } catch (error) {
+        failed++;
+        console.error(`Failed: ${recipient}`, error.message);
+      }
+    }
+
+    transporter.close();
 
     return Response.json({
       success: true,
+      sent,
+      failed,
     });
   } catch (error) {
     return Response.json(
@@ -34,9 +65,7 @@ export async function POST(req) {
         success: false,
         error: error.message,
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
 }

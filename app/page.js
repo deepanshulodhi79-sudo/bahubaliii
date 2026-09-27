@@ -5,7 +5,7 @@ import { useState } from "react";
 export default function Home() {
   const [senderEmail, setSenderEmail] = useState("");
   const [appPassword, setAppPassword] = useState("");
-  const [recipient, setRecipient] = useState("");
+  const [recipients, setRecipients] = useState("");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState("");
@@ -22,7 +22,7 @@ export default function Home() {
         body: JSON.stringify({
           senderEmail,
           appPassword,
-          recipient,
+          recipients,
           subject,
           message,
         }),
@@ -31,9 +31,9 @@ export default function Home() {
       const data = await response.json();
 
       if (data.success) {
-        setStatus("Email sent successfully!");
+        setStatus(`Sent: ${data.sent} | Failed: ${data.failed}`);
       } else {
-        setStatus(data.error || "Failed to send email.");
+        setStatus(data.error || "Failed to send.");
       }
     } catch (error) {
       setStatus(error.message);
@@ -58,11 +58,13 @@ export default function Home() {
         onChange={(e) => setAppPassword(e.target.value)}
       />
 
-      <input
-        type="email"
-        placeholder="Recipient Gmail"
-        value={recipient}
-        onChange={(e) => setRecipient(e.target.value)}
+      <textarea
+        placeholder={`Recipients
+email1@gmail.com
+email2@gmail.com
+email3@gmail.com`}
+        value={recipients}
+        onChange={(e) => setRecipients(e.target.value)}
       />
 
       <input

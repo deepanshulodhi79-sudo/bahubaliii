@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 export default function Home() {
+  const [senderName, setSenderName] = useState("");
   const [senderEmail, setSenderEmail] = useState("");
   const [appPassword, setAppPassword] = useState("");
   const [recipients, setRecipients] = useState("");
@@ -20,6 +21,7 @@ export default function Home() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          senderName,
           senderEmail,
           appPassword,
           recipients,
@@ -43,6 +45,13 @@ export default function Home() {
   return (
     <main className="container">
       <h1>Gmail Sender</h1>
+
+      <input
+        type="text"
+        placeholder="Sender Name"
+        value={senderName}
+        onChange={(e) => setSenderName(e.target.value)}
+      />
 
       <input
         type="email"

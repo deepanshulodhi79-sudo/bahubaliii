@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 
-const MAX_RECIPIENTS = 100;
-const DELAY_MS = 2500;
+const MAX_RECIPIENTS = 50; // Reduced batch size to prevent Gmail aggressive rate-limiting
+const DELAY_MS = 3500; // Increased delay to simulate human/normal sending speed
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -36,7 +36,7 @@ export async function POST(req) {
       );
     }
 
-    const fromEmail = senderEmail.trim();
+    const fromEmail = senderEmail.trim().toLowerCase();
     if (!EMAIL_RE.test(fromEmail)) {
       return Response.json(
         { success: false, error: "Invalid sender email." },
@@ -62,11 +62,12 @@ export async function POST(req) {
 
     if (recipientList.length > MAX_RECIPIENTS) {
       return Response.json(
-        { success: false, error: `Max ${MAX_RECIPIENTS} recipients at a time.` },
+        { success: false, error: `Max ${MAX_RECIPIENTS} recipients at a time for inbox health.` },
         { status: 400 }
       );
     }
 
+    // SMTP Transporter Optimization with Connection Pooling
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 465,
@@ -75,12 +76,35 @@ export async function POST(req) {
         user: fromEmail,
         pass: appPassword.trim().replace(/\s/g, ""),
       },
+      pool: true,
+      maxConnections: 1,
+      maxMessages: 50,
     });
 
     const name = cleanHeader(senderName);
     const cleanSubject = cleanHeader(subject);
     const cleanMessage = message.trim();
-    const htmlMessage = escapeHtml(cleanMessage).replace(/\r?\n/g, "<br>");
+    const htmlContent = escapeHtml(cleanMessage).replace(/\r?\n/g, "<br>");
+
+    // Responsive & Deliverability-optimized HTML Template
+    const fullHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${cleanSubject}</title>
+</head>
+<body style="margin:0; padding:20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color:#f9f9f9; color:#333333; line-height:1.6;">
+  <div style="max-width:600px; margin:0 auto; background:#ffffff; padding:24px; border-radius:6px; border:1px solid #e5e5e5;">
+    <div style="font-size:15px; color:#222222;">
+      ${htmlContent}
+    </div>
+    <div style="margin-top:30px; padding-top:15px; border-top:1px solid #eee; font-size:12px; color:#888888; text-align:center;">
+      Sent by ${name} (${fromEmail})
+    </div>
+  </div>
+</body>
+</html>`;
 
     let sent = 0;
     const failedList = [];
@@ -90,10 +114,15 @@ export async function POST(req) {
         await transporter.sendMail({
           from: `"${name}" <${fromEmail}>`,
           to: recipient,
-          replyTo: fromEmail,
           subject: cleanSubject,
-          text: cleanMessage,
-          html: `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#222;">${htmlMessage}</div>`,
+          text: cleanMessage, // Strict plain text fallback
+          html: fullHtml,
+          // Headers for improving inbox delivery rate
+          headers: {
+            "X-Mailer": "Nodemailer Mailer",
+            "X-Priority": "3",
+            "List-Unsubscribe": `<mailto:${fromEmail}?subject=unsubscribe>`,
+          },
         });
 
         sent++;

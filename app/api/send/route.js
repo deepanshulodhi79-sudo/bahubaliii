@@ -1,5 +1,14 @@
 import nodemailer from "nodemailer";
 
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export async function POST(req) {
   try {
     const {
@@ -11,18 +20,13 @@ export async function POST(req) {
       message,
     } = await req.json();
 
-    const recipientList = recipients
-      .split(/\r?\n|,/)
-      .map((email) => email.trim())
-      .filter(Boolean);
-
     if (
-      !senderName ||
-      !senderEmail ||
-      !appPassword ||
-      !recipientList.length ||
-      !subject ||
-      !message
+      !senderName?.trim() ||
+      !senderEmail?.trim() ||
+      !appPassword?.trim() ||
+      !recipients?.trim() ||
+      !subject?.trim() ||
+      !message?.trim()
     ) {
       return Response.json(
         {
@@ -33,18 +37,28 @@ export async function POST(req) {
       );
     }
 
+    const recipientList = [
+      ...new Set(
+        recipients
+          .split(/[\n,]+/)
+          .map((email) => email.trim().toLowerCase())
+          .filter(Boolean)
+      ),
+    ];
+
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
       auth: {
-        user: senderEmail,
-        pass: appPassword,
+        user: senderEmail.trim(),
+        pass: appPassword.trim(),
       },
     });
 
-    const htmlMessage = message
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
+    const cleanMessage = message.trim();
+
+    const htmlMessage = escapeHtml(cleanMessage)
       .replace(/\r?\n/g, "<br>");
 
     let sent = 0;
@@ -53,10 +67,10 @@ export async function POST(req) {
     for (const recipient of recipientList) {
       try {
         await transporter.sendMail({
-          from: `"${senderName}" <${senderEmail}>`,
+          from: `"${senderName.trim()}" <${senderEmail.trim()}>`,
           to: recipient,
-          subject: subject,
-          text: message,
+          subject: subject.trim(),
+          text: cleanMessage,
           html: `
             <div style="
               font-family: Arial, Helvetica, sans-serif;
@@ -83,10 +97,12 @@ export async function POST(req) {
       failed,
     });
   } catch (error) {
+    console.error("SEND ERROR:", error);
+
     return Response.json(
       {
         success: false,
-        error: error.message,
+        error: error.message || "Failed to send email.",
       },
       { status: 500 }
     );

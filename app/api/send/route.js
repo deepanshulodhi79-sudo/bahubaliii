@@ -41,6 +41,12 @@ export async function POST(req) {
       },
     });
 
+    const htmlMessage = message
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\r?\n/g, "<br>");
+
     let sent = 0;
     let failed = 0;
 
@@ -51,6 +57,15 @@ export async function POST(req) {
           to: recipient,
           subject: subject,
           text: message,
+          html: `
+            <div style="
+              font-family: Arial, Helvetica, sans-serif;
+              font-size: 15px;
+              line-height: 1.6;
+            ">
+              ${htmlMessage}
+            </div>
+          `,
         });
 
         sent++;

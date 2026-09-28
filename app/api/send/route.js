@@ -3,6 +3,7 @@ import nodemailer from "nodemailer";
 export async function POST(req) {
   try {
     const {
+      senderName,
       senderEmail,
       appPassword,
       recipients,
@@ -15,7 +16,14 @@ export async function POST(req) {
       .map((email) => email.trim())
       .filter(Boolean);
 
-    if (!senderEmail || !appPassword || !recipientList.length || !subject || !message) {
+    if (
+      !senderName ||
+      !senderEmail ||
+      !appPassword ||
+      !recipientList.length ||
+      !subject ||
+      !message
+    ) {
       return Response.json(
         {
           success: false,
@@ -39,7 +47,7 @@ export async function POST(req) {
     for (const recipient of recipientList) {
       try {
         await transporter.sendMail({
-          from: senderEmail,
+          from: `"${senderName}" <${senderEmail}>`,
           to: recipient,
           subject: subject,
           text: message,

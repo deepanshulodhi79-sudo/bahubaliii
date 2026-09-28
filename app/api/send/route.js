@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 
-const MAX_RECIPIENTS = 100; // ek baar me limit
-const DELAY_MS = 2500;      // har mail ke beech gap (spam se bachne ke liye)
+const MAX_RECIPIENTS = 100;
+const DELAY_MS = 2500;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -15,7 +15,6 @@ function escapeHtml(text) {
     .replace(/'/g, "&#039;");
 }
 
-// header injection se bachne ke liye newline aur quotes hatao
 const cleanHeader = (s) => String(s).replace(/[\r\n"<>]/g, "").trim();
 
 export async function POST(req) {
@@ -81,9 +80,6 @@ export async function POST(req) {
     const name = cleanHeader(senderName);
     const cleanSubject = cleanHeader(subject);
     const cleanMessage = message.trim();
-
-    const footerText = `\n\n--\n${name}\nAgar aap ye mails nahi chahte, is mail par "unsubscribe" likh kar reply karein.`;
-
     const htmlMessage = escapeHtml(cleanMessage).replace(/\r?\n/g, "<br>");
 
     let sent = 0;
@@ -96,19 +92,8 @@ export async function POST(req) {
           to: recipient,
           replyTo: fromEmail,
           subject: cleanSubject,
-          text: cleanMessage + footerText,
-          html: `
-            <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#222;">
-              ${htmlMessage}
-              <p style="font-size:12px;color:#888;margin-top:24px;">
-                -- <br>${escapeHtml(name)}<br>
-                Agar aap ye mails nahi chahte, is mail par "unsubscribe" likh kar reply karein.
-              </p>
-            </div>
-          `,
-          headers: {
-            "List-Unsubscribe": `<mailto:${fromEmail}?subject=unsubscribe>`,
-          },
+          text: cleanMessage,
+          html: `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#222;">${htmlMessage}</div>`,
         });
 
         sent++;

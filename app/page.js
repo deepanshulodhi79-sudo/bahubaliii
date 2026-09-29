@@ -2,17 +2,9 @@
 
 import { useState } from "react";
 
-const mailboxes = [
-  "hello@clientboost.in",
-  "contact@clientboost.in",
-  "info@clientboost.in",
-  "sales@clientboost.in",
-  "support@clientboost.in",
-];
-
 export default function Home() {
   const [senderName, setSenderName] = useState("");
-  const [senderEmail, setSenderEmail] = useState(mailboxes[0]);
+  const [senderEmail, setSenderEmail] = useState("");
   const [appPassword, setAppPassword] = useState("");
   const [recipients, setRecipients] = useState("");
   const [subject, setSubject] = useState("");
@@ -52,7 +44,7 @@ export default function Home() {
 
   return (
     <main className="container">
-      <h1>ClientBoost Mail Sender</h1>
+      <h1>Gmail Sender</h1>
 
       <input
         type="text"
@@ -61,20 +53,16 @@ export default function Home() {
         onChange={(e) => setSenderName(e.target.value)}
       />
 
-      <select
+      <input
+        type="email"
+        placeholder="Gmail ID"
         value={senderEmail}
         onChange={(e) => setSenderEmail(e.target.value)}
-      >
-        {mailboxes.map((email) => (
-          <option key={email} value={email}>
-            {email}
-          </option>
-        ))}
-      </select>
+      />
 
       <input
         type="password"
-        placeholder="Mailbox Password"
+        placeholder="App Password"
         value={appPassword}
         onChange={(e) => setAppPassword(e.target.value)}
       />

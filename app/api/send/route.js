@@ -29,7 +29,7 @@ export async function POST(req) {
     }
 
     const transporter = nodemailer.createTransport({
-      host: "mail.privateemail.com",
+      host: "smtp.gmail.com",
       port: 465,
       secure: true,
       auth: {
@@ -58,7 +58,7 @@ export async function POST(req) {
         sent++;
       } catch (error) {
         failed++;
-        console.error(error.message);
+        console.error(`Failed: ${recipient}`, error.message);
       }
     }
 
@@ -70,7 +70,7 @@ export async function POST(req) {
       failed,
     });
   } catch (error) {
-    console.error(error);
+    console.error("SEND ERROR:", error);
 
     return Response.json(
       {

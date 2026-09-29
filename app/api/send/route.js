@@ -1,77 +1,111 @@
 import nodemailer from "nodemailer";
 
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export async function POST(req) {
   try {
-    const { senderName, senderEmail, appPassword, recipients, subject, message } =
-      await req.json();
+    const {
+      senderName,
+      senderEmail,
+      appPassword,
+      recipients,
+      subject,
+      message,
+    } = await req.json();
 
-    if (!senderName || !senderEmail || !appPassword || !recipients || !subject || !message) {
+    if (
+      !senderName?.trim() ||
+      !senderEmail?.trim() ||
+      !appPassword?.trim() ||
+      !recipients?.trim() ||
+      !subject?.trim() ||
+      !message?.trim()
+    ) {
       return Response.json(
-        { success: false, error: "Please fill all required fields." },
+        {
+          success: false,
+          error: "Please fill all fields.",
+        },
         { status: 400 }
       );
     }
 
-    const fromEmail = senderEmail.trim().toLowerCase();
-
-    // Clean recipient emails and remove duplicates
     const recipientList = [
       ...new Set(
         recipients
           .split(/[\n,]+/)
           .map((email) => email.trim().toLowerCase())
-          .filter((email) => email.includes("@"))
+          .filter(Boolean)
       ),
     ];
 
-    if (recipientList.length === 0) {
-      return Response.json(
-        { success: false, error: "No valid recipients found." },
-        { status: 400 }
-      );
-    }
-
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "mail.privateemail.com",
+      port: 465,
+      secure: true,
       auth: {
-        user: fromEmail,
-        pass: appPassword.trim().replace(/\s/g, ""), // Remove spaces from App Password
+        user: senderEmail.trim(),
+        pass: appPassword.trim(),
       },
     });
 
+    const cleanMessage = message.trim();
+
+    const htmlMessage = escapeHtml(cleanMessage).replace(
+      /\r?\n/g,
+      "<br>"
+    );
+
     let sent = 0;
-    const failedList = [];
+    let failed = 0;
 
     for (const recipient of recipientList) {
       try {
         await transporter.sendMail({
-          from: `"${senderName}" <${fromEmail}>`,
+          from: `"${senderName.trim()}" <${senderEmail.trim()}>`,
           to: recipient,
           subject: subject.trim(),
-          text: message.trim(), // Plain text fallback (helps avoid spam filters)
-          html: `<div style="font-family: sans-serif; font-size: 15px; color: #222; line-height: 1.5;">${message.replace(/\n/g, "<br>")}</div>`,
+          text: cleanMessage,
+          html: `
+            <div style="
+              font-family: Arial, Helvetica, sans-serif;
+              font-size: 15px;
+              line-height: 1.6;
+            ">
+              ${htmlMessage}
+            </div>
+          `,
         });
 
         sent++;
       } catch (error) {
-        failedList.push(recipient);
-        console.error(`Error sending to ${recipient}:`, error.message);
+        failed++;
+        console.error(`Failed: ${recipient}`, error.message);
       }
-
-      // 3-second delay between each email send
-      await new Promise((r) => setTimeout(r, 3000));
     }
+
+    transporter.close();
 
     return Response.json({
       success: true,
       sent,
-      failed: failedList.length,
-      failedList,
+      failed,
     });
   } catch (error) {
-    console.error("API Error:", error);
+    console.error("SEND ERROR:", error);
+
     return Response.json(
-      { success: false, error: error.message || "Failed to send emails." },
+      {
+        success: false,
+        error: error.message || "Failed to send email.",
+      },
       { status: 500 }
     );
   }

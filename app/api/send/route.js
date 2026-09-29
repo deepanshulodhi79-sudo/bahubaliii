@@ -9,6 +9,14 @@ function escapeHtml(text) {
     .replace(/'/g, "&#039;");
 }
 
+const allowedMailboxes = [
+  "hello@clientboost.in",
+  "contact@clientboost.in",
+  "info@clientboost.in",
+  "sales@clientboost.in",
+  "support@clientboost.in",
+];
+
 export async function POST(req) {
   try {
     const {
@@ -37,6 +45,18 @@ export async function POST(req) {
       );
     }
 
+    const email = senderEmail.trim().toLowerCase();
+
+    if (!allowedMailboxes.includes(email)) {
+      return Response.json(
+        {
+          success: false,
+          error: "Invalid sender mailbox.",
+        },
+        { status: 400 }
+      );
+    }
+
     const recipientList = [
       ...new Set(
         recipients
@@ -46,12 +66,24 @@ export async function POST(req) {
       ),
     ];
 
+    // Current trial limit: 20 emails/hour/mailbox.
+    if (recipientList.length > 20) {
+      return Response.json(
+        {
+          success: false,
+          error:
+            "Your current Private Email trial allows 20 outgoing emails per hour per mailbox. Please send to 20 recipients or fewer.",
+        },
+        { status: 400 }
+      );
+    }
+
     const transporter = nodemailer.createTransport({
       host: "mail.privateemail.com",
       port: 465,
       secure: true,
       auth: {
-        user: senderEmail.trim(),
+        user: email,
         pass: appPassword.trim(),
       },
     });
@@ -69,7 +101,7 @@ export async function POST(req) {
     for (const recipient of recipientList) {
       try {
         await transporter.sendMail({
-          from: `"${senderName.trim()}" <${senderEmail.trim()}>`,
+          from: `"${senderName.trim()}" <${email}>`,
           to: recipient,
           subject: subject.trim(),
           text: cleanMessage,
